@@ -69,20 +69,31 @@ int main()
 	 		cin>>n;
 	 		FOR(i,1,n+1)cin>>dist[i]>>petrol[i];
 	 		cin>>l>>p;
-	 		FOR(i,0,1000001)inp[i]=0;
+	 		FOR(i,0,1000001)inp[i]=INT_MIN;
 	 		seg.clear();
-	 		FOR(i,1,n+1){if(dist[i]<=l){inp[l-dist[i]]=petrol[i];arr[petrol[i]]=l-dist[i];}}
+	 		FOR(i,1,n+1){if(dist[i]<=l){inp[l-dist[i]]=petrol[i];}}
 	 		int co=0,cur=0;
 	 		build(1,1000000,1);
 	 		int f=0;
 	 		while(cur+p<l)
 	 		{
 	 			// cout<<cur<<" "<<p<<" "<<l<<endl;
-	 			pii temp=query(1,1000000,cur,cur+p,1);
+	 			pii temp=query(1,1000000,cur+1,cur+p,1);
+	 			if(cur==0 && inp[0]!=INT_MIN)
+	 			{
+	 				if(inp[0]>temp.first)
+	 				{
+	 					inp[0]=0;
+	 					temp=mp(inp[0],int(0));
+						p+=inp[0];
+						continue;	
+	 				}
+
+	 			}
 	 			p+=temp.first;
 	 			// cout<<temp.first<<endl;
 	 			if(temp.first==0 ||temp.first==INT_MIN){f=1;cout<<"-1"<<ln;break;}
-	 			p-=(temp.second-cur+1);
+	 			p-=(temp.second-cur);
 	 			co++;
 	 			// cout<<"trmp"<<temp<<endl;
 	 			cur=temp.second;
