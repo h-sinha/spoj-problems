@@ -1,7 +1,7 @@
 #include<bits/stdc++.h>
 using namespace std;
-#define FOR(i,a,b) 	for(ll i=a;i<b;++i)
-#define RFOR(i,a,b) 	for(ll i=a;i>=b;--i)
+#define FOR(i,a,b) 	for(int i=a;i<b;++i)
+#define RFOR(i,a,b) 	for(int i=a;i>=b;--i)
 #define ln 		"\n"
 #define mp make_pair
 #define pb push_back
@@ -12,180 +12,164 @@ using namespace std;
 #define debug3(x,y,z) cout<<x<<"-->"<<y<<"-->"<<z<<endl
 typedef long long ll;
 typedef long double ld;
-map<ll,ll> counter;
-const ll N=1e5+7;
-vector <ll> adj[N];
-ll baseArray[N], ptr;
-ll chainNo, chainIndex[N], chainHead[N], posInBase[N];
-ll depth[N], parent[N][32], subsize[N];
-ll seg[N*6], queryarr[N*6];
-void build(ll s,ll e,ll index)
+const int L=1e5+7;
+set<int>v[L];
+int depth[L],parent[L][22],subtree[L],centroidParent[L],color[L];
+std::vector<int> distanceis(L,INT_MAX/4);
+set<pii>SET[L];
+void dfs(int vertex,int prev,int level)
 {
-	if(s>=e)
-	{
-		seg[index]=baseArray[s];
-		return;
-	}
-	ll mid=(s+e)/2;
-	build(s,mid,index<<1);
-	build(mid+1,e,(index<<1)+1);
-	seg[index]=min(seg[index<<1],seg[(index<<1)+1]);
-	return;
+	depth[vertex]=level+1;
+	parent[vertex][0]=prev;
+	for(auto &x:v[vertex])
+		if(x!=prev)dfs(x,vertex,level+1);
 }
-ll queryseg(ll s,ll e,ll index,ll l,ll r)
+int size(int vertex,int prev)
 {
-	if(e<l || s>r )return LLONG_MAX;
-	if(s>=l && e<=r)
-		return seg[index];
-	ll q1,q2,mid=(s+e)/2;
-	q1=queryseg(s,mid,index<<1,l,r);
-	q2=queryseg(mid+1,e,(index<<1)+1,l,r);
-	return min(q1,q2);
-}
-void updateseg(ll s,ll e,ll index,ll updind)
-{
-	if(updind<s||updind>e)return;
-	if(updind==s && updind==e)
+	subtree[vertex]=1;
+	for(auto &x:v[vertex])
 	{
-		seg[index]=baseArray[s];
-		return;
+		if(x!=prev)
+			subtree[vertex]+=size(x,vertex);
 	}
-	ll mid=(s+e)/2;
-	if(updind<=mid)
-		updateseg(s,mid,index<<1,updind);
-	else
-		updateseg(mid+1,e,(index<<1)+1,updind);
-	seg[index]=min(seg[index<<1],seg[(index<<1)+1]);
-	return;
+	return subtree[vertex];
 }
-ll queryup(ll u, ll v) 
+int findCentroid(int vertex,int prev,int n)
 {
-	if(u==v)
+	for(auto &x:v[vertex])
 	{
-		return baseArray[posInBase[u]];
-	}
-	ll uchain,vchain = chainIndex[v], ans =LLONG_MAX;
-	while(1) 
-	{
-		uchain = chainIndex[u];
-		if(uchain == vchain) 
-		{
-			if(u==v) break;
-			ans=min(ans,queryseg(1,ptr,1,posInBase[v],posInBase[u]));
-			// ans=min(ans,queryarr[1]);
-			break;
-		}
-		ans=min(ans,queryseg(1,ptr,1,posInBase[chainHead[uchain]],posInBase[u]));
-		// ans=min(ans,queryarr[1]);
-		u = chainHead[uchain]; 
-		u = parent[u][0]; 
-	}
-	return ans;
-}
-ll findancestor(ll vertex,ll dist)
-{
-	ll index=0;
-	while(dist>0)
-	{
-		if(dist&1)vertex=parent[vertex][index];
-		index++;
-		dist>>=1;
+		if(x!=prev && subtree[x]>n/2)
+			return findCentroid(x,vertex,n);
 	}
 	return vertex;
 }
-void query(ll u) 
+void decompose(int vertex,int prev)
 {
-	ll ans=queryup(u,0);
-	if(ans==LLONG_MAX)
-		cout<<"-1"<<ln;
-	else 
+	size(vertex,-1);
+	int c=findCentroid(vertex,-1,subtree[vertex]);
+	centroidParent[c]=prev;
+	for(auto &x:v[c])
 	{
-		ans=depth[u]-ans;
-		ans=findancestor(u,ans);
-		cout<<ans+1<<ln;
+		v[x].erase(c);
+		decompose(x,c);
 	}
+	v[c].clear();
+	return;
 }
-void HLD(ll curNode,ll prev) 
+int lca(int u,int v)
 {
-	if(chainHead[chainNo] == -1) 
-		chainHead[chainNo] = curNode; 
-	chainIndex[curNode] = chainNo;
-	posInBase[curNode] = ptr; 
-	baseArray[ptr++] = LLONG_MAX;
-	ll special = -1,ncost;
-	FOR(i,0,sz(adj[curNode]))
+	if(depth[u]>depth[v])swap(u,v);
+	int dist=depth[v]-depth[u];
+	int index=0;
+	while(dist>0)
 	{
-		if(adj[curNode][i] != prev) 
-			if(special == -1 || subsize[special] < subsize[adj[curNode][i]]) 
-				special = adj[curNode][i];
+		if(dist&1)v=parent[v][index];
+		index++;
+		dist>>=1;
 	}
- 
-	if(special != -1) 
-		HLD(special, curNode);
- 
-	FOR(i,0,sz(adj[curNode]))
-	{ 
-		if(adj[curNode][i]!=prev && special!=adj[curNode][i]) 
+	RFOR(i,18,0)
+	{
+		if(parent[u][i]!=-1 && parent[u][i]!=parent[v][i])
 		{
-			chainNo++;
-			HLD(adj[curNode][i],curNode);
+			u=parent[u][i];
+			v=parent[v][i];
+		}
+	}
+	if(u==v)return u;
+	return parent[u][0];
+}
+int findDistance(int u,int v)
+{
+	return depth[u]+depth[v]-2*depth[lca(u,v)];
+}
+void update(int vertex)
+{
+	int cur=vertex;
+	if(color[vertex]==1)
+	{
+		while(cur!=-1)
+		{
+			// distanceis[cur]=min(distanceis[cur],findDistance(cur,vertex));
+			int dist=findDistance(cur,vertex);
+			SET[cur].insert(mp(dist,vertex));
+			if(sz(SET[cur]))
+    		{
+				auto it=SET[cur].begin();
+				distanceis[cur]=it->first;
+    		}
+    		else distanceis[cur]=INT_MAX/4;
+			cur=centroidParent[cur];
+		}
+	}
+	else
+	{
+		while(cur!=-1)
+		{
+			int dist=findDistance(cur,vertex);
+			SET[cur].erase(mp(dist,vertex));
+    		// for(auto&x:SET[cur])
+    		// {
+    		// 	if(x.second==vertex)
+    		// 	{
+		    //     	SET[cur].erase(x);
+		    //     	break;
+    		// 	}
+    		// }
+    		if(sz(SET[cur]))
+    		{
+				auto it=SET[cur].begin();
+				distanceis[cur]=it->first;
+    		}
+    		else distanceis[cur]=INT_MAX/4;
+			cur=centroidParent[cur];
 		}
 	}
 	return;
 }
-void dfs(ll vertex,ll prev,ll _depth) 
+int query(int vertex)
 {
-	parent[vertex][0] = prev;
-	depth[vertex] = _depth;
-	subsize[vertex] = 1;
-	FOR(i,0,sz(adj[vertex]))
+	int cur=vertex,ans=INT_MAX;
+	while(cur!=-1)
 	{
-		if(adj[vertex][i] != prev) 
-		{
-			dfs(adj[vertex][i],vertex, _depth+1);
-			subsize[vertex] += subsize[adj[vertex][i]];
-		}
+		ans=min(ans,distanceis[cur]+findDistance(cur,vertex));
+		cur=centroidParent[cur];
 	}
+	return ans;
 }
-int main() 
+int main()
 {
-	ios_base::sync_with_stdio(false);
-	cin.tie(NULL),cout.tie(NULL);
-	ll t,u,v,c,a,b,q;
-	ptr = 1;
-	ll n;
-	cin>>n>>q;
-	FOR(i,0,n)
-	{
-		chainHead[i]=-1;
-		FOR(j,0,30)parent[i][j] = -1;
-	}
-	FOR(i,1,n)
-	{
-		cin>>u>>v;
-		u--,v--;
-		adj[u].push_back(v);
-		adj[v].push_back(u);
-	}
-	chainNo = 0;
-	dfs(0,-1,0); 
-	HLD(0,-1);
-	ptr--;
-	build(1,ptr,1);
-	FOR(j,1,30)
-		FOR(i,0,n+1)
+		ios_base::sync_with_stdio(false);
+	 	cin.tie(NULL);
+	 	int type,n,m,a,b;
+	 	cin>>n;
+	 	FOR(i,0,n-1)
+	 	{
+	 		cin>>a>>b;
+	 		v[a].insert(b);
+	 		v[b].insert(a);
+	 	}
+	 	FOR(i,1,n+1)FOR(j,0,20)parent[i][j]=-1;
+	 	dfs(1,-1,-1);
+	 	FOR(j,1,19)FOR(i,1,n+1)
 	 		if(parent[i][j-1]!=-1)
 	 			parent[i][j]=parent[parent[i][j-1]][j-1];
-	while(q--) 
-	{
-		cin>>a>>b;
-		if(a)
-			query(b-1);
-		else
+		decompose(1,-1);
+		cin>>m;
+		while(m--)
 		{
-			if(baseArray[posInBase[b-1]]==LLONG_MAX)baseArray[posInBase[b-1]]=depth[b-1];
-			else baseArray[posInBase[b-1]]=LLONG_MAX;
-			updateseg(1,ptr,1,posInBase[b-1]);
+			cin>>type>>a;
+			if(type==0)
+			{
+				color[a]^=1;
+				update(a);
+			}
+			else 
+			{
+				int ans=query(a);
+				if(ans==INT_MAX/4)
+					cout<<"-1"<<ln;
+				else cout<<ans<<ln;
+			}
 		}
-	}
-}  
+		return 0;
+}
